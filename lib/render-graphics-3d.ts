@@ -1,11 +1,11 @@
 import { encodePNG, hexToRgb, renderDrawCalls } from "poppygl"
-import { createGraphicsCamera3d } from "./create-graphics-camera-3d"
+import { resolveGraphicsCamera3d } from "./resolve-graphics-camera-3d"
 import { getGraphicsBounds3d } from "./get-graphics-bounds-3d"
 import { graphicsToDrawCalls } from "./graphics-to-draw-calls"
 import { validateGraphics3d } from "./validate-graphics-3d"
 import type { GraphicsObject3d, RenderGraphics3dOptions } from "./types"
 
-/** The browser viewer and PNG snapshots share this PoppyGL rasterization path. */
+/** Deterministic PoppyGL rasterization; no browser or WebGL context required. */
 export function renderGraphics3d(
   graphics: GraphicsObject3d,
   options: RenderGraphics3dOptions = {},
@@ -21,15 +21,10 @@ export function renderGraphics3d(
     throw new Error(
       "Image dimensions and supersampling must be positive integers (supersampling <= 4)",
     )
-  const camera =
-    options.camera ??
-    createGraphicsCamera3d(getGraphicsBounds3d(graphics), width / height)
-  if (
-    [...camera.position, ...camera.target].some((n) => !Number.isFinite(n)) ||
-    Math.hypot(...camera.position.map((n, axis) => n - camera.target[axis])) ===
-      0
-  )
-    throw new Error("Camera needs finite, distinct position and target points")
+  const camera = resolveGraphicsCamera3d(graphics, {
+    camera: options.camera,
+    aspectRatio: width / height,
+  })
   const draws = graphicsToDrawCalls(graphics)
   // A point-only/empty scene still needs finite bounds for PoppyGL's clipping planes.
   if (!draws.length)

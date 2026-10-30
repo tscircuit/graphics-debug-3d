@@ -1,11 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import {
-  createGraphicsCamera3d,
-  getGraphicsBounds3d,
-  renderGraphics3d,
-  type GraphicsObject3d,
-  type Point3d,
-} from "../index"
+import { useEffect, useRef, useState } from "react"
+import type { GraphicsObject3d, Point3d } from "../types"
+import { Graphics3dView } from "./graphics-3d-view"
+
+const axisViews: { label: string; direction: Point3d }[] = [
+  { label: "+X", direction: [1, 0, 0] },
+  { label: "−X", direction: [-1, 0, 0] },
+  { label: "+Y", direction: [0, 1, 0] },
+  { label: "−Y", direction: [0, -1, 0] },
+  { label: "+Z", direction: [0, 0, 1] },
+  { label: "−Z", direction: [0, 0, -1] },
+]
+const buttonStyle = {
+  border: "1px solid #cbd5e1",
+  borderRadius: 5,
+  background: "white",
+  color: "#334155",
+  padding: "5px 9px",
+  cursor: "pointer",
+  fontSize: 12,
+}
 
 export function InteractiveGraphics3d({
   graphics,
@@ -15,142 +28,161 @@ export function InteractiveGraphics3d({
   height?: number
 }) {
   const container = useRef<HTMLDivElement>(null)
-  const canvas = useRef<HTMLCanvasElement>(null)
-  const drag = useRef<{ x: number; y: number } | null>(null)
-  const [width, setWidth] = useState(800)
-  const [orbit, setOrbit] = useState({ yaw: 0, pitch: 0, zoom: 1 })
+  const view = useRef<Graphics3dView | null>(null)
   const [error, setError] = useState<string>()
-  const frame = useMemo(() => {
-    const fitted = createGraphicsCamera3d(
-      getGraphicsBounds3d(graphics),
-      width / height,
-    )
-    const delta = fitted.position.map(
-      (n, axis) => n - fitted.target[axis],
-    ) as Point3d
-    const distance = Math.hypot(...delta) * orbit.zoom
-    const yaw = Math.atan2(delta[1], delta[0]) + orbit.yaw
-    const pitch = Math.max(
-      -1.45,
-      Math.min(1.45, Math.asin(delta[2] / Math.hypot(...delta)) + orbit.pitch),
-    )
-    return {
-      target: fitted.target,
-      position: [
-        fitted.target[0] + distance * Math.cos(pitch) * Math.cos(yaw),
-        fitted.target[1] + distance * Math.cos(pitch) * Math.sin(yaw),
-        fitted.target[2] + distance * Math.sin(pitch),
-      ] as Point3d,
-    }
-  }, [graphics, width, height, orbit])
+  const [cameraFixture, setCameraFixture] = useState<string>()
+  const [copyStatus, setCopyStatus] = useState<string>()
   useEffect(() => {
-    if (!container.current) return
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(Math.max(1, Math.round(entry.contentRect.width))),
-    )
-    observer.observe(container.current)
-    return () => observer.disconnect()
+    try {
+      view.current = new Graphics3dView(container.current!)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    }
+    return () => {
+      view.current?.dispose()
+      view.current = null
+    }
   }, [])
   useEffect(() => {
-    const request = requestAnimationFrame(() => {
-      try {
-        const { bitmap } = renderGraphics3d(graphics, {
-          width,
-          height,
-          camera: frame,
-        })
-        canvas.current
-          ?.getContext("2d")
-          ?.putImageData(
-            new ImageData(new Uint8ClampedArray(bitmap.data), width, height),
-            0,
-            0,
-          )
-        setError(undefined)
-      } catch (caught) {
-        setError(caught instanceof Error ? caught.message : String(caught))
-      }
-    })
-    return () => cancelAnimationFrame(request)
-  }, [graphics, width, height, frame])
+    if (!view.current) return
+    try {
+      view.current.update(graphics)
+      setError(undefined)
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught))
+    }
+  }, [graphics])
+
+  async function copyCamera() {
+    if (!view.current) return
+    const camera = view.current.getCamera()
+    const fixture = JSON.stringify(
+      { cameraPosition: camera.position, cameraTarget: camera.target },
+      null,
+      2,
+    )
+    setCameraFixture(fixture)
+    try {
+      await navigator.clipboard.writeText(fixture)
+      setCopyStatus("Camera copied")
+    } catch {
+      setCopyStatus("Select and copy the camera fixture below")
+    }
+  }
+
   return (
     <div
-      ref={container}
-      style={{ width: "100%", background: "#f7f9fc", fontFamily: "system-ui" }}
+      style={{
+        width: "100%",
+        background: "#f7f9fc",
+        fontFamily: "system-ui",
+        color: "#334155",
+      }}
     >
       <div
         style={{
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 8,
           padding: "12px 18px",
-          color: "#334155",
+          borderBottom: "1px solid #e2e8f0",
         }}
       >
-        <strong>{graphics.title ?? "3D graphics"}</strong>
+        <strong style={{ marginRight: "auto", fontSize: 14 }}>
+          {graphics.title ?? "3D graphics"}
+        </strong>
         <button
+          style={buttonStyle}
           type="button"
-          onClick={() => setOrbit({ yaw: 0, pitch: 0, zoom: 1 })}
+          onClick={() => view.current?.fit()}
         >
-          Reset view
+          Fit
+        </button>
+        <button
+          style={buttonStyle}
+          type="button"
+          onClick={() => view.current?.reset()}
+        >
+          Reset camera
+        </button>
+        <button style={buttonStyle} type="button" onClick={copyCamera}>
+          Copy camera
         </button>
       </div>
       {error && <p role="alert">{error}</p>}
-      <canvas
-        ref={canvas}
-        width={width}
-        height={height}
-        aria-label={graphics.title ?? "Interactive 3D graphics"}
-        style={{
-          display: "block",
-          width: "100%",
-          touchAction: "none",
-          cursor: "grab",
-        }}
-        onPointerDown={(event) => {
-          event.currentTarget.setPointerCapture(event.pointerId)
-          drag.current = { x: event.clientX, y: event.clientY }
-        }}
-        onPointerMove={(event) => {
-          if (!drag.current) return
-          const dx = event.clientX - drag.current.x
-          const dy = event.clientY - drag.current.y
-          drag.current = { x: event.clientX, y: event.clientY }
-          setOrbit((previous) => ({
-            ...previous,
-            yaw: previous.yaw - dx * 0.008,
-            pitch: previous.pitch + dy * 0.008,
-          }))
-        }}
-        onPointerUp={() => {
-          drag.current = null
-        }}
-        onPointerCancel={() => {
-          drag.current = null
-        }}
-        onLostPointerCapture={() => {
-          drag.current = null
-        }}
-        onWheel={(event) =>
-          setOrbit((previous) => ({
-            ...previous,
-            zoom: Math.max(
-              0.25,
-              Math.min(5, previous.zoom * Math.exp(event.deltaY * 0.001)),
-            ),
-          }))
-        }
-      />
+      <div style={{ position: "relative" }}>
+        <div
+          ref={container}
+          style={{ height, position: "relative", overflow: "hidden" }}
+        />
+        <div
+          role="group"
+          aria-label="Camera axis views"
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            display: "flex",
+            gap: 4,
+          }}
+        >
+          {axisViews.map(({ label, direction }) => (
+            <button
+              key={label}
+              type="button"
+              style={buttonStyle}
+              aria-label={`View from ${label}`}
+              onClick={() => view.current?.axis(direction)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <p
         style={{
           padding: "8px 18px",
           margin: 0,
           color: "#64748b",
-          fontSize: 13,
+          fontSize: 12,
         }}
       >
-        Drag to orbit · Scroll to zoom · Right-handed coordinates, Z up
+        Drag to orbit · Right-drag / Shift-drag to pan · Scroll to zoom · Z up
       </p>
+      {cameraFixture && (
+        <div style={{ padding: "8px 18px 16px" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
+            <span role="status">
+              {copyStatus} — paste into your visualization result.
+            </span>
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={() => setCameraFixture(undefined)}
+            >
+              Hide camera
+            </button>
+          </div>
+          <textarea
+            aria-label="Camera fixture JSON"
+            readOnly
+            value={cameraFixture}
+            rows={12}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              fontFamily: "monospace",
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }

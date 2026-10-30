@@ -31,7 +31,14 @@ export interface GraphicsBounds3d {
   max: Point3d
 }
 
-export interface GraphicsObject3d {
+export interface GraphicsCameraFixture3d {
+  /** Authored camera fixture, shared by snapshots and the interactive viewer. */
+  cameraPosition?: Point3d
+  /** Defaults to the center of the framing bounds. Coordinates are +Z up. */
+  cameraTarget?: Point3d
+}
+
+export interface GraphicsObject3d extends GraphicsCameraFixture3d {
   title?: string
   meshes?: GraphicsMesh3d[]
   lines?: GraphicsLine3d[]
