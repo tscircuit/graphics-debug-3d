@@ -21,6 +21,13 @@ export function renderGraphics3d(
     throw new Error(
       "Image dimensions and supersampling must be positive integers (supersampling <= 4)",
     )
+  if (
+    options.backgroundColor !== undefined &&
+    !/^#[0-9a-f]{6}$/i.test(options.backgroundColor)
+  )
+    throw new Error(
+      `backgroundColor expected #RRGGBB, got ${options.backgroundColor}`,
+    )
   const camera = resolveGraphicsCamera3d(graphics, {
     camera: options.camera,
     aspectRatio: width / height,

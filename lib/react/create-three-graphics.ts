@@ -27,6 +27,7 @@ export function createThreeGraphics(graphics: GraphicsObject3d): Group {
     new Vector3(...bounds.max).distanceTo(new Vector3(...bounds.min)),
   )
   for (const source of graphics.meshes ?? []) {
+    if (source.indices.length === 0 || source.opacity === 0) continue
     const geometry = new BufferGeometry()
     geometry.setAttribute(
       "position",
