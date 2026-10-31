@@ -1,6 +1,6 @@
 {
   "name": "@tscircuit/graphics-debug-3d",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Serializable 3D debug graphics with PoppyGL snapshots and an interactive viewer",
   "type": "module",
   "module": "lib/index.ts",
