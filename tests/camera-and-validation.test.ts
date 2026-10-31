@@ -41,4 +41,9 @@ test("empty and line-only scenes render and invalid topology fails before raster
       { camera: { position: [0, 0, 0], target: [0, 0, 0] } },
     ),
   ).toThrow("distinct")
+  expect(() => createGraphicsCamera3d(bounds, 0)).toThrow("aspectRatio")
+  expect(() => createGraphicsCamera3d(bounds, -1)).toThrow("aspectRatio")
+  expect(() =>
+    renderGraphics3dToPng({}, { backgroundColor: "not-a-hex" }),
+  ).toThrow("backgroundColor")
 })
