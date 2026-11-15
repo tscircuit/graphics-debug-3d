@@ -5,6 +5,8 @@ export function createGraphicsCamera3d(
   bounds: GraphicsBounds3d,
   aspectRatio = 4 / 3,
 ): GraphicsCamera3d {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0)
+    throw new Error("Camera aspectRatio must be a positive finite number")
   const target = bounds.min.map(
     (n, axis) => (n + bounds.max[axis]) / 2,
   ) as Point3d

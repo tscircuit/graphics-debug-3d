@@ -24,4 +24,25 @@ test("the interactive adapter preserves translated world geometry and disposes G
   disposeThreeGraphics(group)
   expect(disposed).toBe(resources)
   expect(JSON.stringify(assemblyScene)).toBe(source)
+
+  const filtered = createThreeGraphics({
+    meshes: [
+      { id: "empty", positions: [], indices: [] },
+      {
+        id: "hidden",
+        positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+        indices: [0, 1, 2],
+        opacity: 0,
+      },
+      {
+        id: "visible",
+        positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+        indices: [0, 1, 2],
+      },
+    ],
+  })
+  expect(filtered.getObjectByName("empty")).toBeUndefined()
+  expect(filtered.getObjectByName("hidden")).toBeUndefined()
+  expect(filtered.getObjectByName("visible")).toBeDefined()
+  disposeThreeGraphics(filtered)
 })
