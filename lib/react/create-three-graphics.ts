@@ -38,7 +38,7 @@ export function createThreeGraphics(graphics: GraphicsObject3d): Group {
     const mesh = new Mesh(
       geometry,
       new MeshLambertMaterial({
-        color: source.color ?? "#3283b5",
+        color: source.color ?? "#4b89b9",
         opacity,
         transparent: opacity < 1,
         depthWrite: opacity === 1,

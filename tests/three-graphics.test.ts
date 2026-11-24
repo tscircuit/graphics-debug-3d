@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { Box3, Line, Mesh } from "three"
+import { Box3, Line, Mesh, MeshLambertMaterial } from "three"
 import {
   createThreeGraphics,
   disposeThreeGraphics,
@@ -24,4 +24,20 @@ test("the interactive adapter preserves translated world geometry and disposes G
   disposeThreeGraphics(group)
   expect(disposed).toBe(resources)
   expect(JSON.stringify(assemblyScene)).toBe(source)
+})
+
+test("the interactive adapter uses the same default mesh color as snapshots", () => {
+  const group = createThreeGraphics({
+    meshes: [
+      {
+        positions: [0, 0, 0, 1, 0, 0, 0, 1, 0],
+        indices: [0, 1, 2],
+      },
+    ],
+  })
+  const mesh = group.getObjectByProperty("type", "Mesh") as Mesh
+  expect((mesh.material as MeshLambertMaterial).color.getHexString()).toBe(
+    "4b89b9",
+  )
+  disposeThreeGraphics(group)
 })
